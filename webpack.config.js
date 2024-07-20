@@ -1,6 +1,12 @@
 const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-
+const mf = require("@angular-architects/module-federation/webpack");
+const sharedMappings = new mf.SharedMappings();
+const path = require("path");
+const share = mf.share;
+sharedMappings.register(
+  path.join(__dirname, './tsconfig.json'),
+  [/* mapped paths to share */]);
 module.exports = {
   output: {
     uniqueName: 'shell-app',
@@ -10,18 +16,31 @@ module.exports = {
   optimization: {
     runtimeChunk: false
   },
-  resolve: {},
+  resolve: {
+    alias: {
+      ...sharedMappings.getAliases(),
+    }
+  },
   plugins: [
     new ModuleFederationPlugin({
-      name: "shell",
-      library: { type: "var", name: "shell" },
-      filename: "remoteEntry.js",
+      library: { type: "module" },
       remotes: {
-        "mfe1": "mfe1@http://localhost:4201/remoteEntry.js"
+        "mfe1": "http://localhost:4201/remoteEntry.js"
       },
-      shared: ["@angular/core", "@angular/common", "@angular/router"]
+      shared: share({
+        "@angular/core": { singleton: true, strictVersion: true, requiredVersion: 'auto' }, 
+        "@angular/common": { singleton: true, strictVersion: true, requiredVersion: 'auto' }, 
+        "@angular/common/http": { singleton: true, strictVersion: true, requiredVersion: 'auto' }, 
+        "@angular/router": { singleton: true, strictVersion: true, requiredVersion: 'auto' },
+
+        ...sharedMappings.getDescriptors()
+      })
     }),
+    sharedMappings.getPlugin()
   ],
+  experiments: {
+    outputModule: true
+  },
   module: {
     rules: [
       {
